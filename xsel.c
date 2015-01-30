@@ -2128,14 +2128,12 @@ main(int argc, char *argv[])
 
   if (show_version) {
     printf ("xsel version " VERSION " by " AUTHOR "\n");
+    return 0;
   }
 
   if (show_help) {
     usage ();
-  }
-
-  if (show_version || show_help) {
-    exit (0);
+    return 0;
   }
 
   if (fstat (0, &in_statbuf) == -1) {
@@ -2252,13 +2250,13 @@ main(int argc, char *argv[])
   /* handle selection keeping and exit if so */
   if (do_keep) {
     keep_selections ();
-    _exit (0);
+    return 0;
   }
 
   /* handle selection exchange and exit if so */
   if (do_exchange) {
     exchange_selections ();
-    _exit (0);
+    return 0;
   }
 
   /* Find the "CLIPBOARD" selection if required */
@@ -2300,7 +2298,7 @@ main(int argc, char *argv[])
     set_selection__daemon (selection, new_sel);
   }
 
-  exit (0);
+  return 0;
 
 usage_err:
   usage ();
