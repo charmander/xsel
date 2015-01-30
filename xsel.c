@@ -311,7 +311,7 @@ static char * _xs_strdup (const char * s)
     exit_err ("strdup error");
   }
 
-  return ret; 
+  return ret;
 }
 
 /*
@@ -465,10 +465,10 @@ become_daemon (void)
   char * homedir;
 
   if (no_daemon) {
-	  /* If the user has specified a timeout, enforce it even if we don't
-	   * actually daemonize */
-	  set_daemon_timeout ();
-	  return;
+      /* If the user has specified a timeout, enforce it even if we don't
+       * actually daemonize */
+      set_daemon_timeout ();
+      return;
   }
 
   homedir = get_homedir ();
@@ -723,11 +723,11 @@ wait_selection (Atom selection, Atom request_target)
       } else if (event.xselection.property == null_atom &&
                  request_target == delete_atom) {
       } else {
-	XGetWindowProperty (event.xselection.display,
-			    event.xselection.requestor,
-			    event.xselection.property, 0L, 1000000,
-			    false, (Atom)AnyPropertyType, &target,
-			    &format, &length, &bytesafter, &value);
+    XGetWindowProperty (event.xselection.display,
+                event.xselection.requestor,
+                event.xselection.property, 0L, 1000000,
+                false, (Atom)AnyPropertyType, &target,
+                &format, &length, &bytesafter, &value);
 
         debug_property (D_TRACE, event.xselection.requestor,
                         event.xselection.property, target, length);
@@ -1755,9 +1755,9 @@ set_selection (Atom selection, unsigned char * sel)
 
       if (do_follow)
         sel = read_input (sel, true);
-      
+
       if (!handle_selection_request (event, sel)) return;
-      
+
       break;
     case PropertyNotify:
       if (event.xproperty.state != PropertyDelete) break;
@@ -1810,7 +1810,7 @@ set_selection_pair (unsigned char * sel_p, unsigned char * sel_s)
 {
   XEvent event;
   IncrTrack * it;
-  
+
   if (sel_p) {
     if (own_selection (XA_PRIMARY) == false)
       free_string (sel_p);
@@ -1953,13 +1953,13 @@ free_saved_argv (void)
  * Explodes single letter options so that the argument parser can see
  * all of them. Relocates argv and all arguments to the heap.
  */
-static void 
+static void
 expand_argv(int * argc, char **argv[])
 {
   int i, new_i, arglen, new_argc = *argc;
   char ** new_argv;
   char * arg;
- 
+
   /* Calculate new argc */
   for (i = 0; i < *argc; i++) {
     arglen = strlen((*argv)[i]);
@@ -1974,19 +1974,19 @@ expand_argv(int * argc, char **argv[])
   /* Copy args into new argv */
   for (i = 0, new_i = 0; i < *argc; i++) {
     arglen = strlen((*argv)[i]);
-   
+
     /* An option we need to expand? */
     if ((arglen > 2)
-	&& (*argv)[i][0] == '-' && (*argv)[i][1] != '-') {
+    && (*argv)[i][0] == '-' && (*argv)[i][1] != '-') {
       /* Make each letter a new argument. */
 
       char * c = ((*argv)[i] + 1);
-     
+
       while (*c != '\0') {
-	arg = xs_malloc(sizeof(char) * 3);
-	arg[0] = '-';
-	arg[1] = *c;
-	arg[2] = '\0';
+    arg = xs_malloc(sizeof(char) * 3);
+    arg[0] = '-';
+    arg[1] = *c;
+    arg[2] = '\0';
         new_argv[new_i++] = arg;
         c++;
       }
@@ -2159,7 +2159,7 @@ main(int argc, char *argv[])
     exit_err ("Can't open display: %s\n", display_name);
   }
   root = XDefaultRootWindow (display);
-  
+
   /* Create an unmapped window for receiving events */
   black = BlackPixel (display, DefaultScreen (display));
   window = XCreateSimpleWindow (display, root, 0, 0, 1, 1, 0, black, black);
@@ -2299,7 +2299,7 @@ main(int argc, char *argv[])
       new_sel = read_input (new_sel, false);
     set_selection__daemon (selection, new_sel);
   }
-  
+
   exit (0);
 
 usage_err:
