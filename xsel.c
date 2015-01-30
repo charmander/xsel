@@ -37,7 +37,6 @@
 
 #include "xsel.h"
 
-
 /* The name we were invoked as (argv[0]) */
 static char * progname;
 
@@ -299,9 +298,9 @@ xs_malloc (size_t size)
 /*
  * xs_strdup (s)
  *
- * strdup wrapper for unsigned char *
+ * strdup wrapper for byte *
  */
-#define xs_strdup(s) ((unsigned char *) _xs_strdup ((const char *)s))
+#define xs_strdup(s) ((byte *) _xs_strdup ((const char *)s))
 static char * _xs_strdup (const char * s)
 {
   char * ret;
@@ -317,14 +316,14 @@ static char * _xs_strdup (const char * s)
 /*
  * xs_strlen (s)
  *
- * strlen wrapper for unsigned char *
+ * strlen wrapper for byte *
  */
 #define xs_strlen(s) (strlen ((const char *) s))
 
 /*
  * xs_strncpy (s)
  *
- * strncpy wrapper for unsigned char *
+ * strncpy wrapper for byte *
  */
 #define xs_strncpy(dest,s,n) (_xs_strncpy ((char *)dest, (const char *)s, n))
 static char *
@@ -597,14 +596,14 @@ get_timestamp (void)
  * If an error is encountered, the buffer is free'd.
  */
 static bool
-get_append_property (XSelectionEvent * xsl, unsigned char ** buffer,
+get_append_property (XSelectionEvent * xsl, byte ** buffer,
                      unsigned long * offset, unsigned long * alloc)
 {
-  unsigned char * ptr;
+  byte * ptr;
   Atom target;
   int format;
   unsigned long bytesafter, length;
-  unsigned char * value;
+  byte * value;
 
   XGetWindowProperty (xsl->display, xsl->requestor, xsl->property,
                       0L, 1000000, true, (Atom)AnyPropertyType,
@@ -647,11 +646,11 @@ get_append_property (XSelectionEvent * xsl, unsigned char ** buffer,
  * Retrieve a property of target type INCR. Perform incremental retrieval
  * and return the resulting data.
  */
-static unsigned char *
+static byte *
 wait_incr_selection (Atom selection, XSelectionEvent * xsl, int init_alloc)
 {
   XEvent event;
-  unsigned char * incr_base = NULL, * incr_ptr = NULL;
+  byte * incr_base = NULL, * incr_ptr = NULL;
   unsigned long incr_alloc = 0, incr_xfer = 0;
   bool wait_prop = true;
 
@@ -699,14 +698,14 @@ wait_incr_selection (Atom selection, XSelectionEvent * xsl, int init_alloc)
  * have already called XConvertSelection, requesting a string (explicitly
  * XA_STRING) or deletion (delete_atom).
  */
-static unsigned char *
+static byte *
 wait_selection (Atom selection, Atom request_target)
 {
   XEvent event;
   Atom target;
   int format;
   unsigned long bytesafter, length;
-  unsigned char * value, * retval = NULL;
+  byte * value, * retval = NULL;
   bool keep_waiting = true;
 
   while (keep_waiting) {
@@ -783,11 +782,11 @@ wait_selection (Atom selection, Atom request_target)
  * timer. Return NULL and print an error message if the timeout
  * expires before the selection has been retrieved.
  */
-static unsigned char *
+static byte *
 get_selection (Atom selection, Atom request_target)
 {
   Atom prop;
-  unsigned char * retval;
+  byte * retval;
 
   prop = XInternAtom (display, "XSEL_DATA", false);
   XConvertSelection (display, selection, request_target, prop, window,
@@ -828,10 +827,10 @@ get_selection (Atom selection, Atom request_target)
  * applications (eg. Mozilla Firefox). This method is of course more
  * reliable.
  */
-static unsigned char *
+static byte *
 get_selection_text (Atom selection)
 {
-  unsigned char * retval;
+  byte * retval;
 
   if ((retval = get_selection (selection, utf8_atom)) == NULL)
     retval = get_selection (selection, XA_STRING);
@@ -854,10 +853,10 @@ get_selection_text (Atom selection)
  * Copy a string into a new selection buffer, and intitialise
  * current_alloc and total_input to exactly its length.
  */
-static unsigned char *
-copy_sel (unsigned char * s)
+static byte *
+copy_sel (byte * s)
 {
-  unsigned char * new_sel = NULL;
+  byte * new_sel = NULL;
 
   new_sel = xs_strdup (s);
   current_alloc = total_input = xs_strlen (s);
@@ -879,11 +878,11 @@ copy_sel (unsigned char * s)
  * If 'do_select' is true, this function will first check if any data
  * is available for reading, and return immediately if not.
  */
-static unsigned char *
-read_input (unsigned char * read_buffer, bool do_select)
+static byte *
+read_input (byte * read_buffer, bool do_select)
 {
   int insize = in_statbuf.st_blksize;
-  unsigned char * new_buffer = NULL;
+  byte * new_buffer = NULL;
   int d, fatal = 0, nfd;
   ssize_t n;
   fd_set fds;
@@ -966,11 +965,11 @@ try_read:
  * if stdin is a regular file, or at least one block of input otherwise.
  * If the supplied read_buffer is NULL, a new buffer will be allocated.
  */
-static unsigned char *
-initialise_read (unsigned char * read_buffer)
+static byte *
+initialise_read (byte * read_buffer)
 {
   int insize = in_statbuf.st_blksize;
-  unsigned char * new_buffer = NULL;
+  byte * new_buffer = NULL;
 
   if (S_ISREG (in_statbuf.st_mode)) {
     current_alloc += in_statbuf.st_size;
@@ -1139,7 +1138,7 @@ find_incrtrack (Atom atom)
 /* Forward declaration of handle_multiple() */
 static HandleResult
 handle_multiple (Display * display, Window requestor, Atom property,
-                 unsigned char * sel, Atom selection, Time time,
+                 byte * sel, Atom selection, Time time,
                  MultTrack * mparent);
 
 /* Forward declaration of process_multiple() */
@@ -1279,7 +1278,7 @@ complete_multiple (MultTrack * mt, bool do_parent, HandleResult hr)
 static HandleResult
 change_property (Display * display, Window requestor, Atom property,
                  Atom target, int format, int mode,
-                 unsigned char * data, int nelements,
+                 byte * data, int nelements,
                  Atom selection, Time time, MultTrack * mparent)
 {
   XSelectionEvent ev;
@@ -1314,7 +1313,7 @@ change_property (Display * display, Window requestor, Atom property,
   XSelectInput (ev.display, ev.requestor, PropertyChangeMask);
 
   XChangeProperty (ev.display, ev.requestor, ev.property, incr_atom, 32,
-                   PropModeReplace, (unsigned char *)&nr_bytes, 1);
+                   PropModeReplace, (byte *)&nr_bytes, 1);
 
   XSendEvent (display, requestor, false,
               (unsigned long)NULL, (XEvent *)&ev);
@@ -1404,7 +1403,7 @@ handle_timestamp (Display * display, Window requestor, Atom property,
 {
   return
     change_property (display, requestor, property, XA_INTEGER, 32,
-                     PropModeReplace, (unsigned char *)&timestamp, 1,
+                     PropModeReplace, (byte *)&timestamp, 1,
                      selection, time, mparent);
 }
 
@@ -1424,7 +1423,7 @@ handle_targets (Display * display, Window requestor, Atom property,
 
   return
     change_property (display, requestor, property, XA_ATOM, 32,
-                     PropModeReplace, (unsigned char *)targets_cpy,
+                     PropModeReplace, (byte *)targets_cpy,
                      NUM_TARGETS, selection, time, mparent);
 }
 
@@ -1435,7 +1434,7 @@ handle_targets (Display * display, Window requestor, Atom property,
  */
 static HandleResult
 handle_string (Display * display, Window requestor, Atom property,
-               unsigned char * sel, Atom selection, Time time,
+               byte * sel, Atom selection, Time time,
                MultTrack * mparent)
 {
   return
@@ -1451,7 +1450,7 @@ handle_string (Display * display, Window requestor, Atom property,
  */
 static HandleResult
 handle_utf8_string (Display * display, Window requestor, Atom property,
-                    unsigned char * sel, Atom selection, Time time,
+                    byte * sel, Atom selection, Time time,
                     MultTrack * mparent)
 {
   return
@@ -1583,7 +1582,7 @@ continue_incr (IncrTrack * it)
  */
 static HandleResult
 handle_multiple (Display * display, Window requestor, Atom property,
-                 unsigned char * sel, Atom selection, Time time,
+                 byte * sel, Atom selection, Time time,
                  MultTrack * mparent)
 {
   MultTrack * mt;
@@ -1596,7 +1595,7 @@ handle_multiple (Display * display, Window requestor, Atom property,
   XGetWindowProperty (display, requestor, property, 0L, 1000000,
                       false, (Atom)AnyPropertyType, &mt->property,
                       &format, &mt->length, &bytesafter,
-                      (unsigned char **)&mt->atoms);
+                      (byte **)&mt->atoms);
 
   /* Make sure we got the Atom list we want */
   if (format != 32) return HANDLE_OK;
@@ -1625,7 +1624,7 @@ handle_multiple (Display * display, Window requestor, Atom property,
  * Returns true otherwise.
  */
 static bool
-handle_selection_request (XEvent event, unsigned char * sel)
+handle_selection_request (XEvent event, byte * sel)
 {
   XSelectionRequestEvent * xsr = &event.xselectionrequest;
   XSelectionEvent ev;
@@ -1732,7 +1731,7 @@ handle_selection_request (XEvent event, unsigned char * sel)
  * SelectionClear event is received for the specified selection.
  */
 static void
-set_selection (Atom selection, unsigned char * sel)
+set_selection (Atom selection, byte * sel)
 {
   XEvent event;
   IncrTrack * it;
@@ -1784,7 +1783,7 @@ set_selection (Atom selection, unsigned char * sel)
  * created and the specified selection is cleared instead.
  */
 static void
-set_selection__daemon (Atom selection, unsigned char * sel)
+set_selection__daemon (Atom selection, byte * sel)
 {
   if (empty_string (sel) && !do_follow) {
     clear_selection (selection);
@@ -1806,7 +1805,7 @@ set_selection__daemon (Atom selection, unsigned char * sel)
  * secondary selection with text 'sel_s'.
  */
 static void
-set_selection_pair (unsigned char * sel_p, unsigned char * sel_s)
+set_selection_pair (byte * sel_p, byte * sel_s)
 {
   XEvent event;
   IncrTrack * it;
@@ -1881,7 +1880,7 @@ set_selection_pair (unsigned char * sel_p, unsigned char * sel_s)
  * daemon process is created, and both selections are cleared instead.
  */
 static void
-set_selection_pair__daemon (unsigned char * sel_p, unsigned char * sel_s)
+set_selection_pair__daemon (byte * sel_p, byte * sel_s)
 {
   if (empty_string (sel_p) && empty_string (sel_s)) {
     clear_selection (XA_PRIMARY);
@@ -1904,7 +1903,7 @@ set_selection_pair__daemon (unsigned char * sel_p, unsigned char * sel_s)
 static void
 keep_selections (void)
 {
-  unsigned char * text1, * text2;
+  byte * text1, * text2;
 
   text1 = get_selection_text (XA_PRIMARY);
   text2 = get_selection_text (XA_SECONDARY);
@@ -1922,7 +1921,7 @@ keep_selections (void)
 static void
 exchange_selections (void)
 {
-  unsigned char * text1, * text2;
+  byte * text1, * text2;
 
   text1 = get_selection_text (XA_PRIMARY);
   text2 = get_selection_text (XA_SECONDARY);
@@ -2036,7 +2035,7 @@ main(int argc, char *argv[])
   Atom selection = XA_PRIMARY, test_atom;
   int black;
   int i, s=0;
-  unsigned char * old_sel = NULL, * new_sel = NULL;
+  byte * old_sel = NULL, * new_sel = NULL;
   char * display_name = NULL;
   long timeout_ms = 0L;
 

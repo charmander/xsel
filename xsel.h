@@ -96,3 +96,5 @@ typedef int HandleResult;
 #define HANDLE_ERR        (1<<0)
 #define HANDLE_INCOMPLETE (1<<1)
 #define DID_DELETE        (1<<2)
+
+typedef unsigned char byte;
