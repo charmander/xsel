@@ -35,9 +35,6 @@
 #include "xsel.h"
 
 
-/* The name we were invoked as (argv[0]) */
-static char * progname;
-
 /* Verbosity level for debugging */
 static int debug_level = DEBUG_LEVEL;
 
@@ -163,15 +160,12 @@ exit_err (const char * fmt, ...)
 {
   va_list ap;
   int errno_save;
-  char buf[MAXLINE];
-  int n;
+  char buf[MAXLINE] = "xsel: ";
+  int n = strlen (buf);
 
   errno_save = errno;
 
   va_start (ap, fmt);
-
-  snprintf (buf, MAXLINE, "%s: ", progname);
-  n = strlen (buf);
 
   vsnprintf (buf+n, MAXLINE-n, fmt, ap);
   n = strlen (buf);
@@ -196,15 +190,12 @@ print_err (const char * fmt, ...)
 {
   va_list ap;
   int errno_save;
-  char buf[MAXLINE];
-  int n;
+  char buf[MAXLINE] = "xsel: ";
+  int n = strlen (buf);
 
   errno_save = errno;
 
   va_start (ap, fmt);
-
-  snprintf (buf, MAXLINE, "%s: ", progname);
-  n = strlen (buf);
 
   vsnprintf (buf+n, MAXLINE-n, fmt, ap);
   n = strlen (buf);
@@ -2036,8 +2027,6 @@ main(int argc, char *argv[])
   unsigned char * old_sel = NULL, * new_sel = NULL;
   char * display_name = NULL;
   long timeout_ms = 0L;
-
-  progname = argv[0];
 
   /* Specify default behaviour based on input and output file types */
   if (isatty(0) && isatty(1)) {
