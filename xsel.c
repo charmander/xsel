@@ -89,46 +89,48 @@ static struct itimerval timer;
 static void
 usage (void)
 {
-  printf ("Usage: xsel [options]\n");
-  printf ("Manipulate the X selection.\n\n");
-  printf ("By default the current selection is output and not modified if both\n");
-  printf ("standard input and standard output are terminals (ttys).  Otherwise,\n");
-  printf ("the current selection is output if standard output is not a terminal\n");
-  printf ("(tty), and the selection is set from standard input if standard input\n");
-  printf ("is not a terminal (tty). If any input or output options are given then\n");
-  printf ("the program behaves only in the requested mode.\n\n");
-  printf ("If both input and output is required then the previous selection is\n");
-  printf ("output before being replaced by the contents of standard input.\n\n");
-  printf ("Input options\n");
-  printf ("  -a, --append          Append standard input to the selection\n");
-  printf ("  -f, --follow          Append to selection as standard input grows\n");
-  printf ("  -z, --zeroflush       Overwrites selection when zero ('\\0') is received\n");
-  printf ("  -i, --input           Read standard input into the selection\n\n");
-  printf ("Output options\n");
-  printf ("  -o, --output          Write the selection to standard output\n\n");
-  printf ("Action options\n");
-  printf ("  -c, --clear           Clear the selection\n");
-  printf ("  -d, --delete          Request that the selection be cleared and that\n");
-  printf ("                        the application owning it delete its contents\n\n");
-  printf ("Selection options\n");
-  printf ("  -p, --primary         Operate on the PRIMARY selection (default)\n");
-  printf ("  -s, --secondary       Operate on the SECONDARY selection\n");
-  printf ("  -b, --clipboard       Operate on the CLIPBOARD selection\n\n");
-  printf ("  -k, --keep            Do not modify the selections, but make the PRIMARY\n");
-  printf ("                        and SECONDARY selections persist even after the\n");
-  printf ("                        programs they were selected in exit.\n");
-  printf ("X options\n");
-  printf ("  --display displayname\n");
-  printf ("                        Specify the connection to the X server\n");
-  printf ("  -t ms, --selectionTimeout ms\n");
-  printf ("                        Specify the timeout in milliseconds within which the\n");
-  printf ("                        selection must be retrieved. A value of 0 (zero)\n");
-  printf ("                        specifies no timeout (default)\n\n");
-  printf ("Miscellaneous options\n");
-  printf ("  -h, --help            Display this help and exit\n");
-  printf ("  -v, --verbose         Print informative messages\n");
-  printf ("  --version             Output version information and exit\n\n");
-  printf ("Please report bugs to <conrad@vergenet.net>.\n");
+  puts (
+    "Usage: xsel [options]\n"
+    "Manipulate the X selection.\n\n"
+    "By default the current selection is output and not modified if both\n"
+    "standard input and standard output are terminals (ttys).  Otherwise,\n"
+    "the current selection is output if standard output is not a terminal\n"
+    "(tty), and the selection is set from standard input if standard input\n"
+    "is not a terminal (tty). If any input or output options are given then\n"
+    "the program behaves only in the requested mode.\n\n"
+    "If both input and output is required then the previous selection is\n"
+    "output before being replaced by the contents of standard input.\n\n"
+    "Input options\n"
+    "  -a, --append          Append standard input to the selection\n"
+    "  -f, --follow          Append to selection as standard input grows\n"
+    "  -z, --zeroflush       Overwrites selection when zero ('\\0') is received\n"
+    "  -i, --input           Read standard input into the selection\n\n"
+    "Output options\n"
+    "  -o, --output          Write the selection to standard output\n\n"
+    "Action options\n"
+    "  -c, --clear           Clear the selection\n"
+    "  -d, --delete          Request that the selection be cleared and that\n"
+    "                        the application owning it delete its contents\n\n"
+    "Selection options\n"
+    "  -p, --primary         Operate on the PRIMARY selection (default)\n"
+    "  -s, --secondary       Operate on the SECONDARY selection\n"
+    "  -b, --clipboard       Operate on the CLIPBOARD selection\n\n"
+    "  -k, --keep            Do not modify the selections, but make the PRIMARY\n"
+    "                        and SECONDARY selections persist even after the\n"
+    "                        programs they were selected in exit.\n"
+    "X options\n"
+    "  --display displayname\n"
+    "                        Specify the connection to the X server\n"
+    "  -t ms, --selectionTimeout ms\n"
+    "                        Specify the timeout in milliseconds within which the\n"
+    "                        selection must be retrieved. A value of 0 (zero)\n"
+    "                        specifies no timeout (default)\n\n"
+    "Miscellaneous options\n"
+    "  -h, --help            Display this help and exit\n"
+    "  -v, --verbose         Print informative messages\n"
+    "  --version             Output version information and exit\n\n"
+    "Please report bugs to <conrad@vergenet.net>.\n"
+  );
 }
 
 /*
