@@ -308,46 +308,6 @@ _xs_strncpy (char * dest, const char * src, size_t n)
 }
 
 /*
- * get_homedir ()
- *
- * Get the user's home directory.
- */
-static char *
-get_homedir (void)
-{
-  uid_t uid;
-  char * username, * homedir;
-  struct passwd * pw;
-
-  if ((homedir = getenv ("HOME")) != NULL) {
-    return homedir;
-  }
-
-  /* else ... go hunting for it */
-  uid = getuid ();
-
-  username = getenv ("LOGNAME");
-  if (!username) username = getenv ("USER");
-
-  if (username) {
-    pw = getpwnam (username);
-    if (pw && pw->pw_uid == uid) goto gotpw;
-  }
-
-  pw = getpwuid (uid);
-
-gotpw:
-
-  if (!pw) {
-    exit_err ("error retrieving passwd entry");
-  }
-
-  homedir = _xs_strdup (pw->pw_dir);
-
-  return homedir;
-}
-
-/*
  * The set of terminal signals we block while handling SelectionRequests.
  *
  * If we exit in the middle of handling a SelectionRequest, we might leave the
@@ -393,29 +353,6 @@ set_timer_timeout (void)
   timer.it_interval.tv_usec = timeout % USEC_PER_SEC;
   timer.it_value.tv_sec = timeout / USEC_PER_SEC;
   timer.it_value.tv_usec = timeout % USEC_PER_SEC;
-}
-
-/*
- * set_daemon_timeout ()
- *
- * Set up a timer to cause the daemon to exit after the desired
- * amount of time.
- */
-static void
-set_daemon_timeout (void)
-{
-  if (signal (SIGALRM, alarm_handler) == SIG_ERR) {
-    exit_err ("error setting timeout handler");
-  }
-
-  set_timer_timeout ();
-
-  if (sigsetjmp (env_alrm, 0) == 0) {
-    setitimer (ITIMER_REAL, &timer, (struct itimerval *)0);
-  } else {
-    print_debug (D_INFO, "daemon exiting after %d ms", timeout / 1000);
-    exit (0);
-  }
 }
 
 /*
