@@ -85,9 +85,6 @@ static struct itimerval timer;
 
 #define USEC_PER_SEC 1000000
 
-static int saved_argc;
-static char ** saved_argv;
-
 /*
  * usage ()
  *
@@ -1791,24 +1788,6 @@ keep_selections (void)
 
   set_selection_pair__daemon (text1, text2);
 }
-
-/*
- * free_saved_argv ()
- *
- * atexit function for freeing argv, after it has been relocated to the
- * heap.
- */
-static void
-free_saved_argv (void)
-{
-  int i;
-
-  for (i=0; i < saved_argc; i++) {
-    free (saved_argv[i]);
-  }
-  free (saved_argv);
-}
-
 /*
  * expand_argv (&argc, &argv)
  *
@@ -1861,11 +1840,6 @@ expand_argv(int * argc, char **argv[])
   /* Set the expected return values */
   *argc = new_argc;
   *argv = new_argv;
-
-  /* Save the new argc, argv values and free them on exit */
-  saved_argc = new_argc;
-  saved_argv = new_argv;
-  atexit (free_saved_argv);
 }
 
 /*
