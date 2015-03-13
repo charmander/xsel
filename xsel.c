@@ -74,12 +74,6 @@ static Bool do_zeroflush = False;
 /* do_follow: Follow mode for output */
 static Bool do_follow = False;
 
-/* nodaemon: Disable daemon mode if True. */
-static Bool no_daemon = False;
-
-/* logfile: name of file to log error messages to when detached */
-static char logfile[MAXFNAME];
-
 /* fstat() on stdin and stdout */
 static struct stat in_statbuf, out_statbuf;
 
@@ -130,7 +124,6 @@ usage (void)
   printf ("  -k, --keep            Do not modify the selections, but make the PRIMARY\n");
   printf ("                        and SECONDARY selections persist even after the\n");
   printf ("                        programs they were selected in exit.\n");
-  printf ("  -x, --exchange        Exchange the PRIMARY and SECONDARY selections\n\n");
   printf ("X options\n");
   printf ("  --display displayname\n");
   printf ("                        Specify the connection to the X server\n");
@@ -139,10 +132,6 @@ usage (void)
   printf ("                        selection must be retrieved. A value of 0 (zero)\n");
   printf ("                        specifies no timeout (default)\n\n");
   printf ("Miscellaneous options\n");
-  printf ("  -l, --logfile         Specify file to log errors to when detached.\n");
-  printf ("  -n, --nodetach        Do not detach from the controlling terminal. Without\n");
-  printf ("                        this option, xsel will fork to become a background\n");
-  printf ("                        process in input, exchange and keep modes.\n\n");
   printf ("  -h, --help            Display this help and exit\n");
   printf ("  -v, --verbose         Print informative messages\n");
   printf ("  --version             Output version information and exit\n\n");
@@ -434,99 +423,6 @@ set_daemon_timeout (void)
     print_debug (D_INFO, "daemon exiting after %d ms", timeout / 1000);
     exit (0);
   }
-}
-
-
-/*
- * become_daemon ()
- *
- * Perform the required procedure to become a daemon process, as
- * outlined in the Unix programming FAQ:
- * http://www.steve.org.uk/Reference/Unix/faq_2.html#SEC16
- * and open a logfile.
- */
-static void
-become_daemon (void)
-{
-  pid_t pid;
-  int null_r_fd, null_w_fd, log_fd;
-  char * homedir;
-
-  if (no_daemon) {
-	  /* If the user has specified a timeout, enforce it even if we don't
-	   * actually daemonize */
-	  set_daemon_timeout ();
-	  return;
-  }
-
-  homedir = get_homedir ();
-
-  /* Check that we can open a logfile before continuing */
-
-  /* If the user has specified a --logfile, use that ... */
-  if (logfile[0] == '\0') {
-    /* ... otherwise use the default logfile */
-    snprintf (logfile, MAXFNAME, "%s/.xsel.log", homedir);
-  }
-
-  /* Make sure to create the logfile with sane permissions */
-  log_fd = open (logfile, O_WRONLY|O_APPEND|O_CREAT, 0600);
-  if (log_fd == -1) {
-    exit_err ("error opening logfile %s for writing", logfile);
-  }
-  print_debug (D_INFO, "opened logfile %s", logfile);
-
-  if ((pid = fork()) == -1) {
-    exit_err ("error forking");
-  } else if (pid > 0) {
-    _exit (0);
-  }
-
-  if (setsid () == -1) {
-    exit_err ("setsid error");
-  }
-
-  if ((pid = fork()) == -1) {
-    exit_err ("error forking");
-  } else if (pid > 0) {
-    _exit (0);
-  }
-
-  umask (0);
-
-  if (chdir (homedir) == -1) {
-    print_debug (D_WARN, "Could not chdir to %s\n", homedir);
-    if (chdir ("/") == -1) {
-      exit_err ("Error chdir to /");
-    }
-  }
-
-  /* dup2 /dev/null on stdin unless following input */
-  if (!do_follow) {
-    null_r_fd = open ("/dev/null", O_RDONLY);
-    if (null_r_fd == -1) {
-      exit_err ("error opening /dev/null for reading");
-    }
-    if (dup2 (null_r_fd, 0) == -1) {
-      exit_err ("error duplicating /dev/null on stdin");
-    }
-  }
-
-  /* dup2 /dev/null on stdout */
-  null_w_fd = open ("/dev/null", O_WRONLY|O_APPEND);
-  if (null_w_fd == -1) {
-    exit_err ("error opening /dev/null for writing");
-  }
-  if (dup2 (null_w_fd, 1) == -1) {
-    exit_err ("error duplicating /dev/null on stdout");
-  }
-
-  /* dup2 logfile on stderr */
-  if (dup2 (log_fd, 2) == -1) {
-    exit_err ("error duplicating logfile %s on stderr", logfile);
-  }
-
-  set_daemon_timeout ();
 }
 
 /*
@@ -832,8 +728,8 @@ get_selection_text (Atom selection)
  * SELECTION SETTING
  * =================
  *
- * The following functions allow a given selection to be set, appended to
- * or cleared, or to exchange the primary and secondary selections.
+ * The following functions allow a given selection to be set, appended to,
+ * or cleared.
  */
 
 /*
@@ -1004,8 +900,8 @@ handle_x_errors (Display * display, XErrorEvent * eev)
  *
  * Clears the specified X selection 'selection'. This requests that no
  * process should own 'selection'; thus the X server will respond to
- * SelectionRequests with an empty property and we don't need to leave
- * a daemon hanging around to service this selection.
+ * SelectionRequests with an empty property and we don't need to continue
+ * running to service this selection.
  */
 static void
 clear_selection (Atom selection)
@@ -1779,8 +1675,6 @@ set_selection__daemon (Atom selection, unsigned char * sel)
     return;
   }
 
-  become_daemon ();
-
   set_selection (selection, sel);
 }
 
@@ -1877,8 +1771,6 @@ set_selection_pair__daemon (unsigned char * sel_p, unsigned char * sel_s)
     return;
   }
 
-  become_daemon ();
-
   set_selection_pair (sel_p, sel_s);
 }
 
@@ -1898,24 +1790,6 @@ keep_selections (void)
   text2 = get_selection_text (XA_SECONDARY);
 
   set_selection_pair__daemon (text1, text2);
-}
-
-/*
- * exchange_selections ()
- *
- * Exchanges the primary and secondary selections. The current selection
- * texts are retrieved and a new daemon process is created to handle both
- * selections with their texts exchanged.
- */
-static void
-exchange_selections (void)
-{
-  unsigned char * text1, * text2;
-
-  text1 = get_selection_text (XA_PRIMARY);
-  text2 = get_selection_text (XA_SECONDARY);
-
-  set_selection_pair__daemon (text2, text1);
 }
 
 /*
@@ -2016,7 +1890,7 @@ main(int argc, char *argv[])
   Bool show_version = False;
   Bool show_help = False;
   Bool do_append = False, do_clear = False;
-  Bool do_keep = False, do_exchange = False;
+  Bool do_keep = False;
   Bool do_input = False, do_output = False;
   Bool force_input = False, force_output = False;
   Bool want_clipboard = False, do_delete = False;
@@ -2090,8 +1964,6 @@ main(int argc, char *argv[])
       want_clipboard = True;
     } else if (OPT("--keep") || OPT("-k")) {
       do_keep = True;
-    } else if (OPT("--exchange") || OPT("-x")) {
-      do_exchange = True;
     } else if (OPT("--display")) {
       i++; if (i >= argc) goto usage_err;
       display_name = argv[i];
@@ -2099,14 +1971,9 @@ main(int argc, char *argv[])
       i++; if (i >= argc) goto usage_err;
       timeout_ms = strtol(argv[i], (char **)NULL, 10);
       if (timeout_ms < 0) timeout_ms = 0;
-    } else if (OPT("--nodetach") || OPT("-n")) {
-      no_daemon = True;
     } else if (OPT("--delete") || OPT("-d")) {
       do_output = False;
       do_delete = True;
-    } else if (OPT("--logfile") || OPT("-l")) {
-      i++; if (i >= argc) goto usage_err;
-      _xs_strncpy (logfile, argv[i], MAXFNAME);
     } else {
       goto usage_err;
     }
@@ -2238,12 +2105,6 @@ main(int argc, char *argv[])
   /* handle selection keeping and exit if so */
   if (do_keep) {
     keep_selections ();
-    _exit (0);
-  }
-
-  /* handle selection exchange and exit if so */
-  if (do_exchange) {
-    exchange_selections ();
     _exit (0);
   }
 
