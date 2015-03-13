@@ -25,11 +25,13 @@
 #include <sys/time.h>
 #include <setjmp.h>
 #include <signal.h>
+
+#include <stdbool.h>
+
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 
 #include "xsel.h"
-
 
 /* Verbosity level for debugging */
 static int debug_level = DEBUG_LEVEL;
@@ -65,10 +67,10 @@ static Atom supported_targets[MAX_NUM_TARGETS];
 
 /* do_zeroflush: Use only last zero-separated part of input.
  * All previous parts are discarded */
-static Bool do_zeroflush = False;
+static bool do_zeroflush = false;
 
 /* do_follow: Follow mode for output */
-static Bool do_follow = False;
+static bool do_follow = false;
 
 /* fstat() on stdin and stdout */
 static struct stat in_statbuf, out_statbuf;
@@ -271,9 +273,9 @@ xs_malloc (size_t size)
 /*
  * xs_strdup (s)
  *
- * strdup wrapper for unsigned char *
+ * strdup wrapper for byte *
  */
-#define xs_strdup(s) ((unsigned char *) _xs_strdup ((const char *)s))
+#define xs_strdup(s) ((byte *) _xs_strdup ((const char *)s))
 static char * _xs_strdup (const char * s)
 {
   char * ret;
@@ -283,20 +285,20 @@ static char * _xs_strdup (const char * s)
     exit_err ("strdup error");
   }
 
-  return ret; 
+  return ret;
 }
 
 /*
  * xs_strlen (s)
  *
- * strlen wrapper for unsigned char *
+ * strlen wrapper for byte *
  */
 #define xs_strlen(s) (strlen ((const char *) s))
 
 /*
  * xs_strncpy (s)
  *
- * strncpy wrapper for unsigned char *
+ * strncpy wrapper for byte *
  */
 #define xs_strncpy(dest,s,n) (_xs_strncpy ((char *)dest, (const char *)s, n))
 static char *
@@ -408,22 +410,22 @@ get_timestamp (void)
  * pointed to by *offset. 'offset' is modified by this routine to point to
  * the end of the data.
  *
- * Returns True if more data is available for receipt.
+ * Returns true if more data is available for receipt.
  *
  * If an error is encountered, the buffer is free'd.
  */
-static Bool
-get_append_property (XSelectionEvent * xsl, unsigned char ** buffer,
+static bool
+get_append_property (XSelectionEvent * xsl, byte ** buffer,
                      unsigned long * offset, unsigned long * alloc)
 {
-  unsigned char * ptr;
+  byte * ptr;
   Atom target;
   int format;
   unsigned long bytesafter, length;
-  unsigned char * value;
+  byte * value;
 
   XGetWindowProperty (xsl->display, xsl->requestor, xsl->property,
-                      0L, 1000000, True, (Atom)AnyPropertyType,
+                      0L, 1000000, true, (Atom)AnyPropertyType,
                       &target, &format, &length, &bytesafter, &value);
 
   debug_property (D_TRACE, xsl->requestor, xsl->property, target, length);
@@ -433,11 +435,11 @@ get_append_property (XSelectionEvent * xsl, unsigned char ** buffer,
                  get_atom_name (target));
     free (*buffer);
     *buffer = NULL;
-    return False;
+    return false;
   } else if (length == 0) {
     /* A length of 0 indicates the end of the transfer */
     print_debug (D_TRACE, "Got zero length property; end of INCR transfer");
-    return False;
+    return false;
   } else if (format == 8) {
     if (*offset + length > *alloc) {
       *alloc = *offset + length;
@@ -453,7 +455,7 @@ get_append_property (XSelectionEvent * xsl, unsigned char ** buffer,
     print_debug (D_WARN, "Retrieved non-8-bit data\n");
   }
 
-  return True;
+  return true;
 }
 
 
@@ -463,13 +465,13 @@ get_append_property (XSelectionEvent * xsl, unsigned char ** buffer,
  * Retrieve a property of target type INCR. Perform incremental retrieval
  * and return the resulting data.
  */
-static unsigned char *
+static byte *
 wait_incr_selection (Atom selection, XSelectionEvent * xsl, int init_alloc)
 {
   XEvent event;
-  unsigned char * incr_base = NULL, * incr_ptr = NULL;
+  byte * incr_base = NULL, * incr_ptr = NULL;
   unsigned long incr_alloc = 0, incr_xfer = 0;
-  Bool wait_prop = True;
+  bool wait_prop = true;
 
   print_debug (D_TRACE, "Initialising incremental retrieval of at least %d bytes\n", init_alloc);
 
@@ -515,15 +517,15 @@ wait_incr_selection (Atom selection, XSelectionEvent * xsl, int init_alloc)
  * have already called XConvertSelection, requesting a string (explicitly
  * XA_STRING) or deletion (delete_atom).
  */
-static unsigned char *
+static byte *
 wait_selection (Atom selection, Atom request_target)
 {
   XEvent event;
   Atom target;
   int format;
   unsigned long bytesafter, length;
-  unsigned char * value, * retval = NULL;
-  Bool keep_waiting = True;
+  byte * value, * retval = NULL;
+  bool keep_waiting = true;
 
   while (keep_waiting) {
     XNextEvent (display, &event);
@@ -535,26 +537,26 @@ wait_selection (Atom selection, Atom request_target)
       if (event.xselection.property == None) {
         print_debug (D_WARN, "Conversion refused");
         value = NULL;
-        keep_waiting = False;
+        keep_waiting = false;
       } else if (event.xselection.property == null_atom &&
                  request_target == delete_atom) {
       } else {
-	XGetWindowProperty (event.xselection.display,
-			    event.xselection.requestor,
-			    event.xselection.property, 0L, 1000000,
-			    False, (Atom)AnyPropertyType, &target,
-			    &format, &length, &bytesafter, &value);
+    XGetWindowProperty (event.xselection.display,
+                event.xselection.requestor,
+                event.xselection.property, 0L, 1000000,
+                false, (Atom)AnyPropertyType, &target,
+                &format, &length, &bytesafter, &value);
 
         debug_property (D_TRACE, event.xselection.requestor,
                         event.xselection.property, target, length);
 
         if (request_target == delete_atom && value == NULL) {
-          keep_waiting = False;
+          keep_waiting = false;
         } else if (target == incr_atom) {
           /* Handle INCR transfers */
           retval = wait_incr_selection (selection, &event.xselection,
                                         *(int *)value);
-          keep_waiting = False;
+          keep_waiting = false;
         } else if (target != utf8_atom && target != XA_STRING &&
                    target != compound_text_atom &&
                    request_target != delete_atom) {
@@ -563,11 +565,11 @@ wait_selection (Atom selection, Atom request_target)
                        get_atom_name (target));
           free (retval);
           retval = NULL;
-          keep_waiting = False;
+          keep_waiting = false;
         } else {
           retval = xs_strdup (value);
           XFree (value);
-          keep_waiting = False;
+          keep_waiting = false;
         }
 
         XDeleteProperty (event.xselection.display,
@@ -599,16 +601,16 @@ wait_selection (Atom selection, Atom request_target)
  * timer. Return NULL and print an error message if the timeout
  * expires before the selection has been retrieved.
  */
-static unsigned char *
+static byte *
 get_selection (Atom selection, Atom request_target)
 {
   Atom prop;
-  unsigned char * retval;
+  byte * retval;
 
-  prop = XInternAtom (display, "XSEL_DATA", False);
+  prop = XInternAtom (display, "XSEL_DATA", false);
   XConvertSelection (display, selection, request_target, prop, window,
                      timestamp);
-  XSync (display, False);
+  XSync (display, false);
 
   if (timeout > 0) {
     if (signal (SIGALRM, alarm_handler) == SIG_ERR) {
@@ -644,10 +646,10 @@ get_selection (Atom selection, Atom request_target)
  * applications (eg. Mozilla Firefox). This method is of course more
  * reliable.
  */
-static unsigned char *
+static byte *
 get_selection_text (Atom selection)
 {
-  unsigned char * retval;
+  byte * retval;
 
   if ((retval = get_selection (selection, utf8_atom)) == NULL)
     retval = get_selection (selection, XA_STRING);
@@ -670,10 +672,10 @@ get_selection_text (Atom selection)
  * Copy a string into a new selection buffer, and intitialise
  * current_alloc and total_input to exactly its length.
  */
-static unsigned char *
-copy_sel (unsigned char * s)
+static byte *
+copy_sel (byte * s)
 {
-  unsigned char * new_sel = NULL;
+  byte * new_sel = NULL;
 
   new_sel = xs_strdup (s);
   current_alloc = total_input = xs_strlen (s);
@@ -692,14 +694,14 @@ copy_sel (unsigned char * s)
  * the input. read_buffer, which may have been reallocated, is returned
  * upon completion.
  *
- * If 'do_select' is True, this function will first check if any data
+ * If 'do_select' is true, this function will first check if any data
  * is available for reading, and return immediately if not.
  */
-static unsigned char *
-read_input (unsigned char * read_buffer, Bool do_select)
+static byte *
+read_input (byte * read_buffer, bool do_select)
 {
   int insize = in_statbuf.st_blksize;
-  unsigned char * new_buffer = NULL;
+  byte * new_buffer = NULL;
   int d, fatal = 0, nfd;
   ssize_t n;
   fd_set fds;
@@ -782,11 +784,11 @@ try_read:
  * if stdin is a regular file, or at least one block of input otherwise.
  * If the supplied read_buffer is NULL, a new buffer will be allocated.
  */
-static unsigned char *
-initialise_read (unsigned char * read_buffer)
+static byte *
+initialise_read (byte * read_buffer)
 {
   int insize = in_statbuf.st_blksize;
-  unsigned char * new_buffer = NULL;
+  byte * new_buffer = NULL;
 
   if (S_ISREG (in_statbuf.st_mode)) {
     current_alloc += in_statbuf.st_size;
@@ -841,16 +843,16 @@ clear_selection (Atom selection)
   XSetSelectionOwner (display, selection, None, timestamp);
   /* Call XSync to ensure this operation completes before program
    * termination, especially if this is all we are doing. */
-  XSync (display, False);
+  XSync (display, false);
 }
 
 /*
  * own_selection (selection)
  *
- * Requests ownership of the X selection. Returns True if ownership was
- * granted, and False otherwise.
+ * Requests ownership of the X selection. Returns true if ownership was
+ * granted, and false otherwise.
  */
-static Bool
+static bool
 own_selection (Atom selection)
 {
   Window owner;
@@ -860,10 +862,10 @@ own_selection (Atom selection)
    * no need to call XSync here. */
   owner = XGetSelectionOwner (display, selection);
   if (owner != window) {
-    return False;
+    return false;
   } else {
     XSetErrorHandler (handle_x_errors);
-    return True;
+    return true;
   }
 }
 
@@ -955,12 +957,12 @@ find_incrtrack (Atom atom)
 /* Forward declaration of handle_multiple() */
 static HandleResult
 handle_multiple (Display * display, Window requestor, Atom property,
-                 unsigned char * sel, Atom selection, Time time,
+                 byte * sel, Atom selection, Time time,
                  MultTrack * mparent);
 
 /* Forward declaration of process_multiple() */
 static HandleResult
-process_multiple (MultTrack * mt, Bool do_parent);
+process_multiple (MultTrack * mt, bool do_parent);
 
 /*
  * confirm_incr (it)
@@ -974,7 +976,7 @@ notify_incr (IncrTrack * it, HandleResult hr)
 
   /* Call XSync here to make sure any BadAlloc errors are caught before
    * confirming the conversion. */
-  XSync (it->display, False);
+  XSync (it->display, false);
 
   print_debug (D_TRACE, "Confirming conversion");
 
@@ -990,7 +992,7 @@ notify_incr (IncrTrack * it, HandleResult hr)
   if (hr & HANDLE_ERR) ev.property = None;
   else ev.property = it->property;
 
-  XSendEvent (display, ev.requestor, False,
+  XSendEvent (display, ev.requestor, false,
               (unsigned long)NULL, (XEvent *)&ev);
 }
 
@@ -1027,7 +1029,7 @@ complete_incr (IncrTrack * it, HandleResult hr)
 
   if (mparent) {
     trash_incrtrack (it);
-    process_multiple (mparent, True);
+    process_multiple (mparent, true);
   } else {
     notify_incr (it, hr);
     trash_incrtrack (it);
@@ -1046,7 +1048,7 @@ notify_multiple (MultTrack * mt, HandleResult hr)
 
   /* Call XSync here to make sure any BadAlloc errors are caught before
    * confirming the conversion. */
-  XSync (mt->display, False);
+  XSync (mt->display, false);
 
   /* Prepare a SelectionNotify event to send, placing the selection in the
    * requested property. */
@@ -1060,7 +1062,7 @@ notify_multiple (MultTrack * mt, HandleResult hr)
   if (hr & HANDLE_ERR) ev.property = None;
   else ev.property = mt->property;
 
-  XSendEvent (display, ev.requestor, False,
+  XSendEvent (display, ev.requestor, false,
               (unsigned long)NULL, (XEvent *)&ev);
 }
 
@@ -1072,13 +1074,13 @@ notify_multiple (MultTrack * mt, HandleResult hr)
  * of its completion with status 'hr'.
  */
 static void
-complete_multiple (MultTrack * mt, Bool do_parent, HandleResult hr)
+complete_multiple (MultTrack * mt, bool do_parent, HandleResult hr)
 {
   MultTrack * mparent = mt->mparent;
 
   if (mparent) {
     free (mt);
-    if (do_parent) process_multiple (mparent, True);
+    if (do_parent) process_multiple (mparent, true);
   } else {
     notify_multiple (mt, hr);
     free (mt);
@@ -1095,7 +1097,7 @@ complete_multiple (MultTrack * mt, Bool do_parent, HandleResult hr)
 static HandleResult
 change_property (Display * display, Window requestor, Atom property,
                  Atom target, int format, int mode,
-                 unsigned char * data, int nelements,
+                 byte * data, int nelements,
                  Atom selection, Time time, MultTrack * mparent)
 {
   XSelectionEvent ev;
@@ -1130,9 +1132,9 @@ change_property (Display * display, Window requestor, Atom property,
   XSelectInput (ev.display, ev.requestor, PropertyChangeMask);
 
   XChangeProperty (ev.display, ev.requestor, ev.property, incr_atom, 32,
-                   PropModeReplace, (unsigned char *)&nr_bytes, 1);
+                   PropModeReplace, (byte *)&nr_bytes, 1);
 
-  XSendEvent (display, requestor, False,
+  XSendEvent (display, requestor, false,
               (unsigned long)NULL, (XEvent *)&ev);
 
   /* Set up the IncrTrack to track this */
@@ -1220,7 +1222,7 @@ handle_timestamp (Display * display, Window requestor, Atom property,
 {
   return
     change_property (display, requestor, property, XA_INTEGER, 32,
-                     PropModeReplace, (unsigned char *)&timestamp, 1,
+                     PropModeReplace, (byte *)&timestamp, 1,
                      selection, time, mparent);
 }
 
@@ -1240,7 +1242,7 @@ handle_targets (Display * display, Window requestor, Atom property,
 
   return
     change_property (display, requestor, property, XA_ATOM, 32,
-                     PropModeReplace, (unsigned char *)targets_cpy,
+                     PropModeReplace, (byte *)targets_cpy,
                      NUM_TARGETS, selection, time, mparent);
 }
 
@@ -1251,7 +1253,7 @@ handle_targets (Display * display, Window requestor, Atom property,
  */
 static HandleResult
 handle_string (Display * display, Window requestor, Atom property,
-               unsigned char * sel, Atom selection, Time time,
+               byte * sel, Atom selection, Time time,
                MultTrack * mparent)
 {
   return
@@ -1267,7 +1269,7 @@ handle_string (Display * display, Window requestor, Atom property,
  */
 static HandleResult
 handle_utf8_string (Display * display, Window requestor, Atom property,
-                    unsigned char * sel, Atom selection, Time time,
+                    byte * sel, Atom selection, Time time,
                     MultTrack * mparent)
 {
   return
@@ -1301,7 +1303,7 @@ handle_delete (Display * display, Window requestor, Atom property)
  * is iteratively called on mt->mparent.
  */
 static HandleResult
-process_multiple (MultTrack * mt, Bool do_parent)
+process_multiple (MultTrack * mt, bool do_parent)
 {
   HandleResult retval = HANDLE_OK;
   unsigned long i;
@@ -1362,7 +1364,7 @@ process_multiple (MultTrack * mt, Bool do_parent)
  * Continue an incremental transfer of IncrTrack * it.
  *
  * NB. If the incremental transfer was part of a multiple request, this
- * function calls process_multiple with do_parent=True because it is
+ * function calls process_multiple with do_parent=true because it is
  * assumed we are continuing an interrupted ITER, thus we must continue
  * the multiple as its original handler did not complete.
  */
@@ -1392,14 +1394,14 @@ continue_incr (IncrTrack * it)
  * requests are processed within it. Return value has DID_DELETE bit set
  * if any delete requests are processed.
  *
- * NB. This calls process_multiple with do_parent=False because it is
+ * NB. This calls process_multiple with do_parent=false because it is
  * assumed we are "handling" the multiple request on behalf of a
  * multiple already in progress, or (more likely) directly off a
  * SelectionRequest event.
  */
 static HandleResult
 handle_multiple (Display * display, Window requestor, Atom property,
-                 unsigned char * sel, Atom selection, Time time,
+                 byte * sel, Atom selection, Time time,
                  MultTrack * mparent)
 {
   MultTrack * mt;
@@ -1410,9 +1412,9 @@ handle_multiple (Display * display, Window requestor, Atom property,
   mt = xs_malloc (sizeof (MultTrack));
 
   XGetWindowProperty (display, requestor, property, 0L, 1000000,
-                      False, (Atom)AnyPropertyType, &mt->property,
+                      false, (Atom)AnyPropertyType, &mt->property,
                       &format, &mt->length, &bytesafter,
-                      (unsigned char **)&mt->atoms);
+                      (byte **)&mt->atoms);
 
   /* Make sure we got the Atom list we want */
   if (format != 32) return HANDLE_OK;
@@ -1426,7 +1428,7 @@ handle_multiple (Display * display, Window requestor, Atom property,
   mt->time = time;
   mt->index = 0;
 
-  retval = process_multiple (mt, False);
+  retval = process_multiple (mt, false);
 
   return retval;
 }
@@ -1436,17 +1438,17 @@ handle_multiple (Display * display, Window requestor, Atom property,
  *
  * Processes a SelectionRequest event 'event' and replies to its
  * sender appropriately, eg. with the contents of the string 'sel'.
- * Returns False if a DELETE request is processed, indicating to
+ * Returns false if a DELETE request is processed, indicating to
  * the calling function to delete the corresponding selection.
- * Returns True otherwise.
+ * Returns true otherwise.
  */
-static Bool
-handle_selection_request (XEvent event, unsigned char * sel)
+static bool
+handle_selection_request (XEvent event, byte * sel)
 {
   XSelectionRequestEvent * xsr = &event.xselectionrequest;
   XSelectionEvent ev;
   HandleResult hr = HANDLE_OK;
-  Bool retval = True;
+  bool retval = true;
 
   print_debug (D_TRACE, "handle_selection_request, property=0x%x (%s), target=0x%x (%s)",
                xsr->property, get_atom_name (xsr->property),
@@ -1506,15 +1508,15 @@ handle_selection_request (XEvent event, unsigned char * sel)
     /* Received DELETE request */
     ev.property = xsr->property;
     hr = handle_delete (ev.display, ev.requestor, ev.property);
-    retval = False;
+    retval = false;
   } else {
     /* Cannot convert to requested target. This includes most non-string
      * datatypes, and INSERT_SELECTION, INSERT_PROPERTY */
     ev.property = None;
   }
 
-  /* Return False if a DELETE was processed */
-  retval = (hr & DID_DELETE) ? False : True;
+  /* Return false if a DELETE was processed */
+  retval = (hr & DID_DELETE) ? false : true;
 
   /* If there was an error in the transfer, it should be refused */
   if (hr & HANDLE_ERR) {
@@ -1526,12 +1528,12 @@ handle_selection_request (XEvent event, unsigned char * sel)
     if (ev.property == None) {print_debug (D_TRACE, "Refusing conversion");}
     else { print_debug (D_TRACE, "Confirming conversion");}
 
-    XSendEvent (display, ev.requestor, False,
+    XSendEvent (display, ev.requestor, false,
                 (unsigned long)NULL, (XEvent *)&ev);
 
-    /* If we return False here, we may quit immediately, so sync out the
+    /* If we return false here, we may quit immediately, so sync out the
      * X queue. */
-    if (!retval) XSync (display, False);
+    if (!retval) XSync (display, false);
   }
 
   return retval;
@@ -1548,12 +1550,12 @@ handle_selection_request (XEvent event, unsigned char * sel)
  * SelectionClear event is received for the specified selection.
  */
 static void
-set_selection (Atom selection, unsigned char * sel)
+set_selection (Atom selection, byte * sel)
 {
   XEvent event;
   IncrTrack * it;
 
-  if (own_selection (selection) == False) return;
+  if (own_selection (selection) == false) return;
 
   for (;;) {
     /* Flush before unblocking signals so we send replies before exiting */
@@ -1570,10 +1572,10 @@ set_selection (Atom selection, unsigned char * sel)
       if (event.xselectionrequest.selection != selection) break;
 
       if (do_follow)
-        sel = read_input (sel, True);
-      
+        sel = read_input (sel, true);
+
       if (!handle_selection_request (event, sel)) return;
-      
+
       break;
     case PropertyNotify:
       if (event.xproperty.state != PropertyDelete) break;
@@ -1600,7 +1602,7 @@ set_selection (Atom selection, unsigned char * sel)
  * created and the specified selection is cleared instead.
  */
 static void
-set_selection__daemon (Atom selection, unsigned char * sel)
+set_selection__daemon (Atom selection, byte * sel)
 {
   if (empty_string (sel) && !do_follow) {
     clear_selection (selection);
@@ -1620,20 +1622,20 @@ set_selection__daemon (Atom selection, unsigned char * sel)
  * secondary selection with text 'sel_s'.
  */
 static void
-set_selection_pair (unsigned char * sel_p, unsigned char * sel_s)
+set_selection_pair (byte * sel_p, byte * sel_s)
 {
   XEvent event;
   IncrTrack * it;
-  
+
   if (sel_p) {
-    if (own_selection (XA_PRIMARY) == False)
+    if (own_selection (XA_PRIMARY) == false)
       free_string (sel_p);
   } else {
     clear_selection (XA_PRIMARY);
   }
 
   if (sel_s) {
-    if (own_selection (XA_SECONDARY) == False)
+    if (own_selection (XA_SECONDARY) == false)
       free_string (sel_s);
   } else {
     clear_selection (XA_SECONDARY);
@@ -1695,7 +1697,7 @@ set_selection_pair (unsigned char * sel_p, unsigned char * sel_s)
  * daemon process is created, and both selections are cleared instead.
  */
 static void
-set_selection_pair__daemon (unsigned char * sel_p, unsigned char * sel_s)
+set_selection_pair__daemon (byte * sel_p, byte * sel_s)
 {
   if (empty_string (sel_p) && empty_string (sel_s)) {
     clear_selection (XA_PRIMARY);
@@ -1716,26 +1718,27 @@ set_selection_pair__daemon (unsigned char * sel_p, unsigned char * sel_s)
 static void
 keep_selections (void)
 {
-  unsigned char * text1, * text2;
+  byte * text1, * text2;
 
   text1 = get_selection_text (XA_PRIMARY);
   text2 = get_selection_text (XA_SECONDARY);
 
   set_selection_pair__daemon (text1, text2);
 }
+
 /*
  * expand_argv (&argc, &argv)
  *
  * Explodes single letter options so that the argument parser can see
  * all of them. Relocates argv and all arguments to the heap.
  */
-static void 
+static void
 expand_argv(int * argc, char **argv[])
 {
   int i, new_i, arglen, new_argc = *argc;
   char ** new_argv;
   char * arg;
- 
+
   /* Calculate new argc */
   for (i = 0; i < *argc; i++) {
     arglen = strlen((*argv)[i]);
@@ -1750,19 +1753,19 @@ expand_argv(int * argc, char **argv[])
   /* Copy args into new argv */
   for (i = 0, new_i = 0; i < *argc; i++) {
     arglen = strlen((*argv)[i]);
-   
+
     /* An option we need to expand? */
     if ((arglen > 2)
-	&& (*argv)[i][0] == '-' && (*argv)[i][1] != '-') {
+    && (*argv)[i][0] == '-' && (*argv)[i][1] != '-') {
       /* Make each letter a new argument. */
 
       char * c = ((*argv)[i] + 1);
-     
+
       while (*c != '\0') {
-	arg = xs_malloc(sizeof(char) * 3);
-	arg[0] = '-';
-	arg[1] = *c;
-	arg[2] = '\0';
+    arg = xs_malloc(sizeof(char) * 3);
+    arg[0] = '-';
+    arg[1] = *c;
+    arg[2] = '\0';
         new_argv[new_i++] = arg;
         c++;
       }
@@ -1796,25 +1799,25 @@ expand_argv(int * argc, char **argv[])
 int
 main(int argc, char *argv[])
 {
-  Bool show_version = False;
-  Bool show_help = False;
-  Bool do_append = False, do_clear = False;
-  Bool do_keep = False;
-  Bool do_input = False, do_output = False;
-  Bool force_input = False, force_output = False;
-  Bool want_clipboard = False, do_delete = False;
+  bool show_version = false;
+  bool show_help = false;
+  bool do_append = false, do_clear = false;
+  bool do_keep = false;
+  bool do_input = false, do_output = false;
+  bool force_input = false, force_output = false;
+  bool want_clipboard = false, do_delete = false;
   Window root;
   Atom selection = XA_PRIMARY, test_atom;
   int black;
   int i, s=0;
-  unsigned char * old_sel = NULL, * new_sel = NULL;
+  byte * old_sel = NULL, * new_sel = NULL;
   char * display_name = NULL;
   long timeout_ms = 0L;
 
   /* Specify default behaviour based on input and output file types */
   if (isatty(0) && isatty(1)) {
     /* Solo invocation; display the selection and exit */
-    do_input = False; do_output = True;
+    do_input = false; do_output = true;
   } else {
     /* Use only what is not attached to the tty */
     /* Gives expected behaviour with *basic* usage of "xsel < foo", "xsel > foo", etc. */
@@ -1838,41 +1841,41 @@ main(int argc, char *argv[])
   /* Parse options; modify behaviour according to user-specified options */
   for (i=1; i < argc; i++) {
     if (OPT("--help") || OPT("-h")) {
-      show_help = True;
+      show_help = true;
     } else if (OPT("--version")) {
-      show_version = True;
+      show_version = true;
     } else if (OPT("--verbose") || OPT("-v")) {
       debug_level++;
     } else if (OPT("--append") || OPT("-a")) {
-      force_input = True;
-      do_output = False;
-      do_append = True;
+      force_input = true;
+      do_output = false;
+      do_append = true;
     } else if (OPT("--input") || OPT("-i")) {
-      force_input = True;
-      do_output = False;
+      force_input = true;
+      do_output = false;
     } else if (OPT("--clear") || OPT("-c")) {
-      do_output = False;
-      do_clear = True;
+      do_output = false;
+      do_clear = true;
     } else if (OPT("--output") || OPT("-o")) {
-      do_input = False;
-      force_output = True;
+      do_input = false;
+      force_output = true;
     } else if (OPT("--follow") || OPT("-f")) {
-      force_input = True;
-      do_output = False;
-      do_follow = True;
+      force_input = true;
+      do_output = false;
+      do_follow = true;
     } else if (OPT("--zeroflush") || OPT("-z")) {
-      force_input = True;
-      do_output = False;
-      do_follow = True;
-      do_zeroflush = True;
+      force_input = true;
+      do_output = false;
+      do_follow = true;
+      do_zeroflush = true;
     } else if (OPT("--primary") || OPT("-p")) {
       selection = XA_PRIMARY;
     } else if (OPT("--secondary") || OPT("-s")) {
       selection = XA_SECONDARY;
     } else if (OPT("--clipboard") || OPT("-b")) {
-      want_clipboard = True;
+      want_clipboard = true;
     } else if (OPT("--keep") || OPT("-k")) {
-      do_keep = True;
+      do_keep = true;
     } else if (OPT("--display")) {
       i++; if (i >= argc) goto usage_err;
       display_name = argv[i];
@@ -1881,8 +1884,8 @@ main(int argc, char *argv[])
       timeout_ms = strtol(argv[i], (char **)NULL, 10);
       if (timeout_ms < 0) timeout_ms = 0;
     } else if (OPT("--delete") || OPT("-d")) {
-      do_output = False;
-      do_delete = True;
+      do_output = false;
+      do_delete = true;
     } else {
       goto usage_err;
     }
@@ -1890,14 +1893,12 @@ main(int argc, char *argv[])
 
   if (show_version) {
     printf ("xsel version " VERSION " by " AUTHOR "\n");
+    return 0;
   }
 
   if (show_help) {
     usage ();
-  }
-
-  if (show_version || show_help) {
-    exit (0);
+    return 0;
   }
 
   if (fstat (0, &in_statbuf) == -1) {
@@ -1921,7 +1922,7 @@ main(int argc, char *argv[])
     exit_err ("Can't open display: %s\n", display_name);
   }
   root = XDefaultRootWindow (display);
-  
+
   /* Create an unmapped window for receiving events */
   black = BlackPixel (display, DefaultScreen (display));
   window = XCreateSimpleWindow (display, root, 0, 0, 1, 1, 0, black, black);
@@ -1941,47 +1942,47 @@ main(int argc, char *argv[])
   print_debug (D_OBSC, "Maximum request size: %ld bytes", max_req);
 
   /* Consistency check */
-  test_atom = XInternAtom (display, "PRIMARY", False);
+  test_atom = XInternAtom (display, "PRIMARY", false);
   if (test_atom != XA_PRIMARY)
     print_debug (D_WARN, "XA_PRIMARY not named \"PRIMARY\"\n");
-  test_atom = XInternAtom (display, "SECONDARY", False);
+  test_atom = XInternAtom (display, "SECONDARY", false);
   if (test_atom != XA_SECONDARY)
     print_debug (D_WARN, "XA_SECONDARY not named \"SECONDARY\"\n");
 
   NUM_TARGETS=0;
 
   /* Get the TIMESTAMP atom */
-  timestamp_atom = XInternAtom (display, "TIMESTAMP", False);
+  timestamp_atom = XInternAtom (display, "TIMESTAMP", false);
   supported_targets[s++] = timestamp_atom;
   NUM_TARGETS++;
 
   /* Get the MULTIPLE atom */
-  multiple_atom = XInternAtom (display, "MULTIPLE", False);
+  multiple_atom = XInternAtom (display, "MULTIPLE", false);
   supported_targets[s++] = multiple_atom;
   NUM_TARGETS++;
 
   /* Get the TARGETS atom */
-  targets_atom = XInternAtom (display, "TARGETS", False);
+  targets_atom = XInternAtom (display, "TARGETS", false);
   supported_targets[s++] = targets_atom;
   NUM_TARGETS++;
 
   /* Get the DELETE atom */
-  delete_atom = XInternAtom (display, "DELETE", False);
+  delete_atom = XInternAtom (display, "DELETE", false);
   supported_targets[s++] = delete_atom;
   NUM_TARGETS++;
 
   /* Get the INCR atom */
-  incr_atom = XInternAtom (display, "INCR", False);
+  incr_atom = XInternAtom (display, "INCR", false);
   supported_targets[s++] = incr_atom;
   NUM_TARGETS++;
 
   /* Get the TEXT atom */
-  text_atom = XInternAtom (display, "TEXT", False);
+  text_atom = XInternAtom (display, "TEXT", false);
   supported_targets[s++] = text_atom;
   NUM_TARGETS++;
 
   /* Get the UTF8_STRING atom */
-  utf8_atom = XInternAtom (display, "UTF8_STRING", True);
+  utf8_atom = XInternAtom (display, "UTF8_STRING", true);
   if(utf8_atom != None) {
     supported_targets[s++] = utf8_atom;
     NUM_TARGETS++;
@@ -1998,13 +1999,13 @@ main(int argc, char *argv[])
   }
 
   /* Get the NULL atom */
-  null_atom = XInternAtom (display, "NULL", False);
+  null_atom = XInternAtom (display, "NULL", false);
 
   /* Get the COMPOUND_TEXT atom.
    * NB. We do not currently serve COMPOUND_TEXT; we can retrieve it but
    * do not perform charset conversion.
    */
-  compound_text_atom = XInternAtom (display, "COMPOUND_TEXT", False);
+  compound_text_atom = XInternAtom (display, "COMPOUND_TEXT", false);
 
   sigemptyset (&exit_sigs);
   sigaddset (&exit_sigs, SIGALRM);
@@ -2014,12 +2015,12 @@ main(int argc, char *argv[])
   /* handle selection keeping and exit if so */
   if (do_keep) {
     keep_selections ();
-    _exit (0);
+    return 0;
   }
 
   /* Find the "CLIPBOARD" selection if required */
   if (want_clipboard) {
-    selection = XInternAtom (display, "CLIPBOARD", False);
+    selection = XInternAtom (display, "CLIPBOARD", false);
   }
 
   /* handle output modes */
@@ -2052,11 +2053,11 @@ main(int argc, char *argv[])
     }
     new_sel = initialise_read (new_sel);
     if(!do_follow)
-      new_sel = read_input (new_sel, False);
+      new_sel = read_input (new_sel, false);
     set_selection__daemon (selection, new_sel);
   }
-  
-  exit (0);
+
+  return 0;
 
 usage_err:
   usage ();
