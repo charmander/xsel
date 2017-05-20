@@ -296,22 +296,6 @@ static char * _xs_strdup (const char * s)
 #define xs_strlen(s) (strlen ((const char *) s))
 
 /*
- * xs_strncpy (s)
- *
- * strncpy wrapper for byte *
- */
-#define xs_strncpy(dest,s,n) (_xs_strncpy ((char *)dest, (const char *)s, n))
-static char *
-_xs_strncpy (char * dest, const char * src, size_t n)
-{
-  if (n > 0) {
-    strncpy (dest, src, n);
-    dest[n-1] = '\0';
-  }
-  return dest;
-}
-
-/*
  * The set of terminal signals we block while handling SelectionRequests.
  *
  * If we exit in the middle of handling a SelectionRequest, we might leave the
